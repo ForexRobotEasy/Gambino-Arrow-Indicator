@@ -1,0 +1,81 @@
+
+//+------------------------------------------------------------------+
+//|                                              Gambino Arrow Indicator |
+//|                                 Developed by Forex Robot Easy Team |
+//|                                             forexroboteasy.com |
+//+------------------------------------------------------------------+
+#property copyright 'Forex Robot Easy Team'
+#property link      'forexroboteasy.com'
+#property version   '1.00'
+#property strict
+
+// Input parameters
+input int RiseFallLevel = 3; // Number of levels of rise or fall before reversal can occur
+
+// Global variables
+int prevIndex = -1; // Index of the previous bar
+int prevTrend = 0; // Previous trend direction
+
+// Indicator initialization function
+int OnInit()
+{
+    IndicatorShortName('Gambino Arrow');
+    SetIndexStyle(0, DRAW_ARROW);
+    SetIndexArrow(0, 233);
+    SetIndexBuffer(0, arrowsBuffer);
+    return(INIT_SUCCEEDED);
+}
+
+// Indicator calculation function
+int OnCalculate(const int ratesTotal, const int prev_calculated, const datetime &time[], const double &open[], const double &high[], const double &low[], const double &close[], const long &tick_volume[], const long &volume[], const int &spread[])
+{
+    // Calculate the mid-week reversal
+    for(int i = prev_calculated; i < ratesTotal; i++)
+    {
+        // Check if it's mid-week
+        int dayOfWeek = TimeDayOfWeek(time[i]);
+        if(dayOfWeek == 3) // Wednesday
+        {
+            // Calculate the dominant weekly trend
+            double weeklyHigh = 0;
+            double weeklyLow = 0;
+            for(int j = i - 7; j < i; j++)
+            {
+                weeklyHigh = MathMax(weeklyHigh, high[j]);
+                weeklyLow = MathMin(weeklyLow, low[j]);
+            }
+            double weeklyRange = weeklyHigh - weeklyLow;
+            int weeklyTrend = prevTrend;
+            if(weeklyRange > 0)
+            {
+                if(close[i] > weeklyHigh - RiseFallLevel * weeklyRange)
+                    weeklyTrend = 1; // Upward trend
+                else if(close[i] < weeklyLow + RiseFallLevel * weeklyRange)
+                    weeklyTrend = -1; // Downward trend
+                else
+                    weeklyTrend = 0; // Sideways trend
+            }
+            
+            // Check if the mid-week reversal occurs
+            if(weeklyTrend != prevTrend)
+            {
+                // Generate a signal
+                if(weeklyTrend == 1)
+                    arrowsBuffer[i] = 2; // Up arrow
+                else if(weeklyTrend == -1)
+                    arrowsBuffer[i] = 4; // Down arrow
+                else
+                    arrowsBuffer[i] = EMPTY_VALUE; // No arrow
+                
+                prevTrend = weeklyTrend;
+                prevIndex = i;
+            }
+            else
+                arrowsBuffer[i] = EMPTY_VALUE; // No arrow
+        }
+        else
+            arrowsBuffer[i] = EMPTY_VALUE; // No arrow
+    }
+    
+    return(ratesTotal);
+}
